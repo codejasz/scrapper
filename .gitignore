@@ -5,9 +5,10 @@ __pycache__/
 venv/
 responses/
 
-# cURL artefakty (zawierają sesyjne JWT/hasła — nie commitować)
+# cURL artefakty + sample responses (sesyjne JWT/hasła + dane z konta — nie commitować)
 docs/superpowers/curls/*.sh
 docs/superpowers/curls/*.txt
+docs/superpowers/curls/*.json
 !docs/superpowers/curls/README.md
 !docs/superpowers/curls/.gitkeep
 
