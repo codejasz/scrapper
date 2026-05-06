@@ -25,12 +25,17 @@ SAVE_URL = f"{BASE_URL}/NewPortal/AvailabilityLog/Save"
 LOCK_URL = f"{BASE_URL}/NewPortal/Reservation/LockTerm"
 
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "pl,en-US;q=0.7,en;q=0.3",
     "Origin": "https://portalpacjenta.luxmed.pl",
-    "Referer": "https://portalpacjenta.luxmed.pl/PatientPortal/NewPortal",
+    "Referer": "https://portalpacjenta.luxmed.pl/PatientPortal/NewPortal/Page/Reservation/Results",
     "X-Requested-With": "XMLHttpRequest",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "sec-ch-ua": '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Linux"',
 }
 
 JWT_EXPIRY_MARGIN_SECONDS = 60
@@ -158,6 +163,9 @@ class LuxmedClient:
         body = _build_lock_term_body(term, ctx)
         resp = self.session.post(LOCK_URL, json=body,
                                  headers={"Content-Type": "application/json"})
+        if not resp.ok:
+            logger.error("LockTerm %s response body: %s", resp.status_code, resp.text[:1000])
+            logger.debug("LockTerm request body: %s", body)
         resp.raise_for_status()
         data = resp.json()
         errors = data.get("errors") or []
