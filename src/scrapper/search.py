@@ -46,34 +46,22 @@ def iter_days(crit: SearchCriteria) -> Iterator[date]:
         current += timedelta(days=1)
 
 
-CHUNK_SIZE_DAYS = 14  # oneDayTerms zwraca terms na 14 dni przez searchDatePreset=14
-
-
-def iter_chunks(crit: SearchCriteria, chunk_size_days: int = CHUNK_SIZE_DAYS) -> Iterator[date]:
-    """Yields start-date kolejnych 14-dniowych okien pokrywających [date_from, date_to]."""
-    current = crit.date_from.date()
-    last = crit.date_to.date()
-    while current <= last:
-        yield current
-        current += timedelta(days=chunk_size_days)
-
-
 def find_matching_term(
     client: LuxmedClient,
     crit: SearchCriteria,
     *,
-    between_chunks_sleep: tuple[float, float] | None = (1.2, 2.0),
+    between_days_sleep: tuple[float, float] | None = (1.2, 2.0),
 ) -> Term | None:
-    """Iteracja po 14-dniowych chunkach (oneDayTerms zwraca preset=14).
-    `between_chunks_sleep`: jitter między requestami. None wyłącza (testy).
+    """Per-day iteracja: oneDayTerms zwraca tylko jeden dzień (searchDateFrom==searchDateTo).
+    `between_days_sleep`: jitter między requestami. None wyłącza (testy).
     """
     first = True
-    for chunk_start in iter_chunks(crit):
-        if not first and between_chunks_sleep is not None:
-            time.sleep(random.uniform(*between_chunks_sleep))
+    for day in iter_days(crit):
+        if not first and between_days_sleep is not None:
+            time.sleep(random.uniform(*between_days_sleep))
         first = False
         response = client.get_one_day_terms(
-            service_id=crit.service_id, place=crit.place, day=chunk_start,
+            service_id=crit.service_id, place=crit.place, day=day,
         )
         for term in response.terms:
             if matches(term, crit):

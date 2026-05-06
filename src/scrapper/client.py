@@ -42,9 +42,11 @@ class AuthError(RuntimeError):
 
 class LuxmedClient:
     def __init__(self, email: str, password: str) -> None:
+        import uuid as _uuid
         self.email = email
         self.password = password
         self._token: str | None = None
+        self._process_id: str = str(_uuid.uuid4())  # reused across oneDayTerms calls
 
         self.session = requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
@@ -122,8 +124,10 @@ class LuxmedClient:
             ("serviceVariantId", str(service_id)),
             ("languageId", "10"),
             ("searchDateFrom", day.isoformat()),
-            ("searchDatePreset", "14"),
-            ("expectedTermsNumber", "1"),
+            ("searchDateTo", day.isoformat()),
+            ("processId", self._process_id),
+            ("searchByMedicalSpecialist", "false"),
+            ("expectedTermsNumber", "2"),
             ("delocalized", "false"),
         ]
         url = f"{ONE_DAY_TERMS_URL}?{urlencode(params)}"
@@ -172,17 +176,19 @@ class LuxmedClient:
 
 
 def _parse_one_day_terms(data: dict[str, Any]) -> OneDayTermsResponse:
+    """Real shape: data['termsForDay'] = {day, correlationId, terms[]}.
+    Top-level correlationId duplicates the one inside termsForDay.
+    """
     correlation_id = data.get("correlationId")
-    terms: list[Term] = []
-    days = ((data.get("termsForService") or {}).get("termsForDays") or [])
-    for day_block in days:
-        for raw_term in day_block.get("terms") or []:
-            terms.append(_parse_term(raw_term))
+    tfd = data.get("termsForDay") or {}
+    raw_terms = tfd.get("terms") or []
+    terms = [_parse_term(rt) for rt in raw_terms]
     return OneDayTermsResponse(terms=terms, correlation_id=correlation_id, raw=data)
 
 
 def _parse_term(raw: dict[str, Any]) -> Term:
     doc = raw.get("doctor") or {}
+    # JSON: serviceId per term (NIE serviceVariantId — to jest na poziomie URL/request)
     return Term(
         date_time_from=datetime.fromisoformat(raw["dateTimeFrom"]),
         date_time_to=datetime.fromisoformat(raw["dateTimeTo"]),
@@ -196,8 +202,8 @@ def _parse_term(raw: dict[str, Any]) -> Term:
         facility_name=raw.get("clinic", ""),
         room_id=raw.get("roomId", 0),
         schedule_id=raw.get("scheduleId", 0),
-        service_variant_id=raw.get("serviceVariantId", 0),
-        service_variant_name=raw.get("serviceVariantName", ""),
+        service_variant_id=raw.get("serviceId", 0),
+        service_variant_name="",  # real API nie zwraca; bierzemy z catalog/CLI
         is_telemedicine=bool(raw.get("isTelemedicine", False)),
         is_additional=bool(raw.get("isAdditional", False)),
         raw=raw,

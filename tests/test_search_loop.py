@@ -26,44 +26,20 @@ def _crit() -> SearchCriteria:
     )
 
 
-def test_find_matching_term_returns_first_match_in_chunk():
-    """14-day chunk: jeden GET zwraca terms na pełne okno, znajdujemy pierwszy matching."""
-    client = MagicMock()
-    client.get_one_day_terms.return_value = OneDayTermsResponse(
-        terms=[
-            _term(datetime(2026, 5, 5, 8, 0)),  # before window? no — date_from=5 maja 0:00
-            _term(datetime(2026, 5, 6, 17, 0)),
-        ],
-        correlation_id="c", raw={},
-    )
-
-    found = find_matching_term(client, _crit(), between_chunks_sleep=None)
-
-    assert found is not None
-    assert found.date_time_from == datetime(2026, 5, 5, 8, 0)
-    assert client.get_one_day_terms.call_count == 1
-
-
-def test_find_matching_term_chunks_window_longer_than_14_days():
-    """Okno >14 dni → kolejne chunki po 14 dni, dopóki nie znajdzie match."""
+def test_find_matching_term_returns_first_match_across_days():
+    """Per-day search: dzień 1 pusty, dzień 2 ma matching term."""
     client = MagicMock()
     client.get_one_day_terms.side_effect = [
         OneDayTermsResponse(terms=[], correlation_id="c1", raw={}),
         OneDayTermsResponse(
-            terms=[_term(datetime(2026, 5, 25, 12, 0))], correlation_id="c2", raw={},
+            terms=[_term(datetime(2026, 5, 6, 17, 0))], correlation_id="c2", raw={},
         ),
     ]
-    crit = SearchCriteria(
-        service_id=4436,
-        place=Place(id=5, name="Wrocław"),
-        date_from=datetime(2026, 5, 5, 0, 0),
-        date_to=datetime(2026, 5, 30, 23, 59),  # 26 dni → 2 chunki
-    )
 
-    found = find_matching_term(client, crit, between_chunks_sleep=None)
+    found = find_matching_term(client, _crit(), between_days_sleep=None)
 
     assert found is not None
-    assert found.date_time_from == datetime(2026, 5, 25, 12, 0)
+    assert found.date_time_from == datetime(2026, 5, 6, 17, 0)
     assert client.get_one_day_terms.call_count == 2
 
 
@@ -72,7 +48,7 @@ def test_find_matching_term_returns_none_when_nothing_matches():
     client.get_one_day_terms.return_value = OneDayTermsResponse(
         terms=[], correlation_id="c", raw={},
     )
-    assert find_matching_term(client, _crit(), between_chunks_sleep=None) is None
+    assert find_matching_term(client, _crit(), between_days_sleep=None) is None
 
 
 def test_poll_loop_returns_when_match_found_first_iteration():

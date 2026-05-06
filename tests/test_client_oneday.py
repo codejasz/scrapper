@@ -15,31 +15,28 @@ def _jwt() -> str:
 
 _SAMPLE_TERMS_RESPONSE = {
     "correlationId": "corr-abc",
-    "termsForService": {
-        "termsForDays": [
+    "serviceVariantId": 4436,
+    "termsForDay": {
+        "day": "2026-05-08T00:00:00",
+        "correlationId": "corr-abc",
+        "terms": [
             {
-                "day": "2026-05-08",
-                "terms": [
-                    {
-                        "dateTimeFrom": "2026-05-08T17:00:00",
-                        "dateTimeTo": "2026-05-08T17:30:00",
-                        "doctor": {
-                            "id": 11, "firstName": "Jan", "lastName": "Kowalski",
-                            "academicTitle": "dr",
-                        },
-                        "clinicId": 20,
-                        "clinic": "Klinika Swobodna",
-                        "roomId": 30,
-                        "scheduleId": 40,
-                        "serviceVariantId": 4436,
-                        "serviceVariantName": "Konsultacja ortopedyczna",
-                        "isTelemedicine": False,
-                        "isAdditional": False,
-                        "preparationItems": [{"id": 99}],
-                    }
-                ],
+                "dateTimeFrom": "2026-05-08T17:00:00",
+                "dateTimeTo": "2026-05-08T17:30:00",
+                "doctor": {
+                    "id": 11, "firstName": "Jan", "lastName": "Kowalski",
+                    "academicTitle": "dr", "genderId": 1,
+                },
+                "clinicId": 20,
+                "clinic": "Klinika Swobodna",
+                "roomId": 30,
+                "scheduleId": 40,
+                "serviceId": 4436,
+                "isTelemedicine": False,
+                "isAdditional": False,
+                "preparationItems": [{"id": 99}],
             }
-        ]
+        ],
     },
 }
 
@@ -72,12 +69,16 @@ def test_get_one_day_terms_parses_terms_and_correlation_id():
     assert "searchPlace.type=0" in request.url
     assert "serviceVariantId=4436" in request.url
     assert "searchDateFrom=2026-05-08" in request.url
+    assert "searchDateTo=2026-05-08" in request.url
+    assert "searchByMedicalSpecialist=false" in request.url
+    assert "expectedTermsNumber=2" in request.url
+    assert "processId=" in request.url
 
 
 def test_get_one_day_terms_empty_day_returns_no_terms():
     empty_response = {
         "correlationId": "corr-xyz",
-        "termsForService": {"termsForDays": [{"day": "2026-05-08", "terms": []}]},
+        "termsForDay": {"day": "2026-05-08T00:00:00", "correlationId": "corr-xyz", "terms": []},
     }
     adapter = _MockAdapter([
         (200, {"Content-Type": "application/json",

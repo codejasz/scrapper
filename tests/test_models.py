@@ -63,7 +63,7 @@ def test_one_day_terms_response_carries_correlation_id():
     resp = OneDayTermsResponse(
         terms=[],
         correlation_id="xyz",
-        raw={"correlationId": "xyz", "termsForService": {"termsForDays": []}},
+        raw={"correlationId": "xyz", "termsForDay": {"terms": []}},
     )
     assert resp.correlation_id == "xyz"
     assert resp.terms == []
