@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "luxmed-scrapper"
+version = "0.2.0"
+description = "Prywatny scrapper rezerwacji wizyt Luxmed (JWT-era)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Adrian Kodjasz", email = "adrian.kodjasz@gmail.com"}]
+dependencies = [
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "python-dateutil>=2.8",
+    "pyjwt>=2.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+scrapper = "scrapper.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
