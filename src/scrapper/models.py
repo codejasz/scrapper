@@ -34,8 +34,8 @@ class Term:
     date_time_from: datetime
     date_time_to: datetime
     doctor: Doctor
-    facility_id: int
-    facility_name: str
+    facility_id: int  # JSON: clinicId (rename: domain term)
+    facility_name: str  # JSON: clinic
     room_id: int
     schedule_id: int
     service_variant_id: int
