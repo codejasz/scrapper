@@ -4,18 +4,23 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import date, datetime
 from typing import Any
+from urllib.parse import urlencode
 
 import jwt as jwt_lib
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from .models import Doctor, OneDayTermsResponse, Place, Term
+
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://portalpacjenta.luxmed.pl/PatientPortal"
 LOGIN_URL = f"{BASE_URL}/Account/LogIn"
 GROUPS_URL = f"{BASE_URL}/NewPortal/Dictionary/serviceVariantsGroups"
+ONE_DAY_TERMS_URL = f"{BASE_URL}/NewPortal/terms/oneDayTerms"
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0",
@@ -101,3 +106,59 @@ class LuxmedClient:
         resp = self.session.get(GROUPS_URL)
         resp.raise_for_status()
         return resp.json()
+
+    def get_one_day_terms(
+        self, *, service_id: int, place: Place, day: date,
+    ) -> OneDayTermsResponse:
+        self.ensure_authenticated()
+        self._propagate_xsrf()
+
+        params = [
+            ("searchPlace.id", str(place.id)),
+            ("searchPlace.name", place.name),
+            ("searchPlace.type", str(place.type)),
+            ("serviceVariantId", str(service_id)),
+            ("languageId", "10"),
+            ("searchDateFrom", day.isoformat()),
+            ("searchDatePreset", "14"),
+            ("expectedTermsNumber", "1"),
+            ("delocalized", "false"),
+        ]
+        url = f"{ONE_DAY_TERMS_URL}?{urlencode(params)}"
+        resp = self.session.get(url)
+        resp.raise_for_status()
+        data = resp.json()
+        return _parse_one_day_terms(data)
+
+
+def _parse_one_day_terms(data: dict[str, Any]) -> OneDayTermsResponse:
+    correlation_id = data.get("correlationId")
+    terms: list[Term] = []
+    days = ((data.get("termsForService") or {}).get("termsForDays") or [])
+    for day_block in days:
+        for raw_term in day_block.get("terms") or []:
+            terms.append(_parse_term(raw_term))
+    return OneDayTermsResponse(terms=terms, correlation_id=correlation_id, raw=data)
+
+
+def _parse_term(raw: dict[str, Any]) -> Term:
+    doc = raw.get("doctor") or {}
+    return Term(
+        date_time_from=datetime.fromisoformat(raw["dateTimeFrom"]),
+        date_time_to=datetime.fromisoformat(raw["dateTimeTo"]),
+        doctor=Doctor(
+            id=doc.get("id", 0),
+            first_name=doc.get("firstName", ""),
+            last_name=doc.get("lastName", ""),
+            academic_title=doc.get("academicTitle"),
+        ),
+        facility_id=raw.get("clinicId", 0),
+        facility_name=raw.get("clinic", ""),
+        room_id=raw.get("roomId", 0),
+        schedule_id=raw.get("scheduleId", 0),
+        service_variant_id=raw.get("serviceVariantId", 0),
+        service_variant_name=raw.get("serviceVariantName", ""),
+        is_telemedicine=bool(raw.get("isTelemedicine", False)),
+        is_additional=bool(raw.get("isAdditional", False)),
+        raw=raw,
+    )
