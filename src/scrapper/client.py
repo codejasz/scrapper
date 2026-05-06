@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://portalpacjenta.luxmed.pl/PatientPortal"
 LOGIN_URL = f"{BASE_URL}/Account/LogIn"
+GROUPS_URL = f"{BASE_URL}/NewPortal/Dictionary/serviceVariantsGroups"
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0",
@@ -67,6 +68,7 @@ class LuxmedClient:
             raise AuthError("Login response bez pola token")
         self._token = token
         self.session.headers["Authorization-Token"] = token
+        self._propagate_xsrf()
         logger.info("Zalogowano. Token przydzielony.")
 
     def is_authenticated(self) -> bool:
@@ -86,3 +88,16 @@ class LuxmedClient:
     def ensure_authenticated(self) -> None:
         if not self.is_authenticated():
             self.login()
+
+    def _propagate_xsrf(self) -> None:
+        """Double-submit XSRF: cookie XSRF-TOKEN duplikujemy w header'ze."""
+        xsrf = self.session.cookies.get("XSRF-TOKEN")
+        if xsrf:
+            self.session.headers["XSRF-TOKEN"] = xsrf
+
+    def get_service_groups(self) -> list[dict]:
+        self.ensure_authenticated()
+        self._propagate_xsrf()
+        resp = self.session.get(GROUPS_URL)
+        resp.raise_for_status()
+        return resp.json()
