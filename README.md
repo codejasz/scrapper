@@ -65,7 +65,7 @@ src/scrapper/
 └── cli.py           argparse, sub-commands
 ```
 
-Per-day search: nie 14-dniowe okno, tylko iteracja dzień-po-dniu (jeden GET per dzień).
+Search po 14-dniowych chunkach: jeden `oneDayTerms` z `searchDatePreset=14` zwraca terms na pełne 14 dni do przodu, dla okna >14 dni iterujemy po kolejnych chunkach. Throttle 1.2-2.0s między chunkami + retry-on-429 z 30s backoff.
 JWT TTL = 10 min — ponowny login przy zbliżaniu się expiry (margines 60s).
 XSRF: cookie `XSRF-TOKEN` duplikowany w nagłówku (double-submit).
 
