@@ -35,7 +35,7 @@ def test_find_matching_term_returns_first_match_across_days():
         ),
     ]
 
-    found = find_matching_term(client, _crit())
+    found = find_matching_term(client, _crit(), between_days_sleep=None)
 
     assert found is not None
     assert found.date_time_from == datetime(2026, 5, 6, 17, 0)
@@ -47,7 +47,7 @@ def test_find_matching_term_returns_none_when_nothing_matches():
     client.get_one_day_terms.return_value = OneDayTermsResponse(
         terms=[], correlation_id="c", raw={},
     )
-    assert find_matching_term(client, _crit()) is None
+    assert find_matching_term(client, _crit(), between_days_sleep=None) is None
 
 
 def test_poll_loop_returns_when_match_found_first_iteration():

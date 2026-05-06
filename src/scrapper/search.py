@@ -46,8 +46,18 @@ def iter_days(crit: SearchCriteria) -> Iterator[date]:
         current += timedelta(days=1)
 
 
-def find_matching_term(client: LuxmedClient, crit: SearchCriteria) -> Term | None:
+def find_matching_term(
+    client: LuxmedClient,
+    crit: SearchCriteria,
+    *,
+    between_days_sleep: tuple[float, float] | None = (0.3, 0.7),
+) -> Term | None:
+    """`between_days_sleep`: jitter między requestami. None wyłącza (testy)."""
+    first = True
     for day in iter_days(crit):
+        if not first and between_days_sleep is not None:
+            time.sleep(random.uniform(*between_days_sleep))
+        first = False
         response = client.get_one_day_terms(
             service_id=crit.service_id, place=crit.place, day=day,
         )

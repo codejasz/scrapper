@@ -8,6 +8,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import requests
+
 from .booking import lock
 from .catalog import find_service_by_id, find_services_by_name
 from .client import AuthError, LuxmedClient
@@ -221,6 +223,12 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_smoke(args, settings)
     except AuthError as exc:
         logger.error("Auth: %s", exc)
+        return 1
+    except requests.HTTPError as exc:
+        status = exc.response.status_code if exc.response is not None else "?"
+        logger.error("HTTP %s z Luxmeda: %s", status, exc.request.url if exc.request else "")
+        if status == 429:
+            logger.error("Rate-limit. Odczekaj 1-5 minut przed kolejną próbą.")
         return 1
     except KeyboardInterrupt:
         logger.info("Przerwane przez użytkownika")
