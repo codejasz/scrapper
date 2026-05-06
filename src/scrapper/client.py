@@ -13,7 +13,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .models import Doctor, OneDayTermsResponse, Place, Term
+from .models import Doctor, LockResult, OneDayTermsResponse, Place, SearchContext, Term
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,8 @@ BASE_URL = "https://portalpacjenta.luxmed.pl/PatientPortal"
 LOGIN_URL = f"{BASE_URL}/Account/LogIn"
 GROUPS_URL = f"{BASE_URL}/NewPortal/Dictionary/serviceVariantsGroups"
 ONE_DAY_TERMS_URL = f"{BASE_URL}/NewPortal/terms/oneDayTerms"
+SAVE_URL = f"{BASE_URL}/NewPortal/AvailabilityLog/Save"
+LOCK_URL = f"{BASE_URL}/NewPortal/Reservation/LockTerm"
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0",
@@ -130,6 +132,40 @@ class LuxmedClient:
         data = resp.json()
         return _parse_one_day_terms(data)
 
+    def save_availability_log(self, ctx: SearchContext) -> None:
+        self.ensure_authenticated()
+        self._propagate_xsrf()
+        body = {
+            "correlationId": ctx.correlation_id,
+            "processId": ctx.process_id,
+            "searchParameters": ctx.search_parameters,
+        }
+        resp = self.session.post(SAVE_URL, json=body,
+                                 headers={"Content-Type": "application/json"})
+        resp.raise_for_status()
+
+    def lock_term(self, term: Term, ctx: SearchContext) -> LockResult:
+        self.ensure_authenticated()
+        self._propagate_xsrf()
+        body = _build_lock_term_body(term, ctx)
+        resp = self.session.post(LOCK_URL, json=body,
+                                 headers={"Content-Type": "application/json"})
+        resp.raise_for_status()
+        data = resp.json()
+        errors = data.get("errors") or []
+        if errors:
+            err_msg = "; ".join(e.get("message") or str(e) for e in errors)
+            return LockResult(success=False, temporary_reservation_id=None,
+                              error=err_msg, raw=data)
+        value = data.get("value") or {}
+        reservation_id = value.get("temporaryReservationId")
+        return LockResult(
+            success=bool(reservation_id),
+            temporary_reservation_id=reservation_id,
+            error=None if reservation_id else "Brak temporaryReservationId w response",
+            raw=data,
+        )
+
 
 def _parse_one_day_terms(data: dict[str, Any]) -> OneDayTermsResponse:
     correlation_id = data.get("correlationId")
@@ -162,3 +198,18 @@ def _parse_term(raw: dict[str, Any]) -> Term:
         is_additional=bool(raw.get("isAdditional", False)),
         raw=raw,
     )
+
+
+def _build_lock_term_body(term: Term, ctx: SearchContext) -> dict[str, Any]:
+    """Body LockTerm: bierzemy raw-term i mergujemy z context-id-ami.
+    raw zawiera już preparationItems i pomocnicze pola których serwer wymaga."""
+    body = dict(term.raw)
+    body["correlationId"] = ctx.correlation_id
+    body["processId"] = ctx.process_id
+    body.setdefault("serviceVariantId", term.service_variant_id)
+    body.setdefault("roomId", term.room_id)
+    body.setdefault("scheduleId", term.schedule_id)
+    body.setdefault("clinicId", term.facility_id)
+    body.setdefault("dateTimeFrom", term.date_time_from.isoformat())
+    body.setdefault("dateTimeTo", term.date_time_to.isoformat())
+    return body
