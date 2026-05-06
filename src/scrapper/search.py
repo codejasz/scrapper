@@ -50,7 +50,7 @@ def find_matching_term(
     client: LuxmedClient,
     crit: SearchCriteria,
     *,
-    between_days_sleep: tuple[float, float] | None = (0.3, 0.7),
+    between_days_sleep: tuple[float, float] | None = (1.2, 2.0),
 ) -> Term | None:
     """`between_days_sleep`: jitter między requestami. None wyłącza (testy)."""
     first = True

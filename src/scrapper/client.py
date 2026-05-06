@@ -128,6 +128,10 @@ class LuxmedClient:
         ]
         url = f"{ONE_DAY_TERMS_URL}?{urlencode(params)}"
         resp = self.session.get(url)
+        if resp.status_code == 429:
+            logger.warning("oneDayTerms 429 — sleep 30s i retry")
+            time.sleep(30)
+            resp = self.session.get(url)
         resp.raise_for_status()
         data = resp.json()
         return _parse_one_day_terms(data)
