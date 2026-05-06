@@ -72,14 +72,14 @@ def _resolve_place(city: str) -> Place:
     raise SystemExit(f"Nieznane miasto '{city}'. Dodaj do CITY_IDS w cli.py.")
 
 
-def _resolve_service(client: LuxmedClient, args: argparse.Namespace) -> int:
+def _resolve_service(client: LuxmedClient, args: argparse.Namespace) -> tuple[int, str]:
     groups = client.get_service_groups()
     if args.service_id:
         match = find_service_by_id(groups, args.service_id)
         if not match:
             raise SystemExit(f"Service id {args.service_id} nie istnieje")
         logger.info("Service: %s — %s", match.service_id, match.name)
-        return match.service_id
+        return match.service_id, match.name
     matches = find_services_by_name(groups, args.service_name)
     if not matches:
         raise SystemExit(f"Brak service pasującego do '{args.service_name}'")
@@ -89,14 +89,14 @@ def _resolve_service(client: LuxmedClient, args: argparse.Namespace) -> int:
             print(f"  {m.service_id}  {m.name}  ({' / '.join(m.path)})", file=sys.stderr)
         raise SystemExit(2)
     logger.info("Service: %s — %s", matches[0].service_id, matches[0].name)
-    return matches[0].service_id
+    return matches[0].service_id, matches[0].name
 
 
 def _cmd_search(args: argparse.Namespace, settings: Settings) -> int:
     client = LuxmedClient(settings.luxmed_email, settings.luxmed_password)
     client.login()
 
-    service_id = _resolve_service(client, args)
+    service_id, service_name = _resolve_service(client, args)
     place = _resolve_place(args.city)
     crit = SearchCriteria(
         service_id=service_id, place=place,
@@ -111,6 +111,9 @@ def _cmd_search(args: argparse.Namespace, settings: Settings) -> int:
             return 0
     else:
         term = poll_loop(client, crit, max_iterations=args.max_iterations)
+
+    # service_variant_name nie istnieje w oneDayTerms response — wstrzykujemy z catalogu
+    term.service_variant_name = service_name
 
     if args.no_lock:
         logger.info("Slot znaleziony (no-lock): %s, %s, %s",

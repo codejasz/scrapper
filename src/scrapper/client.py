@@ -211,15 +211,43 @@ def _parse_term(raw: dict[str, Any]) -> Term:
 
 
 def _build_lock_term_body(term: Term, ctx: SearchContext) -> dict[str, Any]:
-    """Body LockTerm: bierzemy raw-term i mergujemy z context-id-ami.
-    raw zawiera już preparationItems i pomocnicze pola których serwer wymaga."""
-    body = dict(term.raw)
-    body["correlationId"] = ctx.correlation_id
-    body["processId"] = ctx.process_id
-    body.setdefault("serviceVariantId", term.service_variant_id)
-    body.setdefault("roomId", term.room_id)
-    body.setdefault("scheduleId", term.schedule_id)
-    body.setdefault("clinicId", term.facility_id)
-    body.setdefault("dateTimeFrom", term.date_time_from.isoformat())
-    body.setdefault("dateTimeTo", term.date_time_to.isoformat())
-    return body
+    """Body LockTerm — explicit shape per recon (curls/lock_term.sh).
+    NIE zawiera processId; zawiera correlationId z ostatniego oneDayTerms.
+    `date` to ISO UTC midnight (dzień bez godziny), godziny osobno jako stringi.
+    """
+    raw = term.raw
+    day_iso = term.date_time_from.strftime("%Y-%m-%dT00:00:00.000Z")
+    return {
+        "serviceVariantId": term.service_variant_id,
+        "serviceVariantName": term.service_variant_name,
+        "facilityId": term.facility_id,
+        "facilityName": term.facility_name,
+        "roomId": term.room_id,
+        "scheduleId": term.schedule_id,
+        "date": day_iso,
+        "timeFrom": term.date_time_from.strftime("%H:%M"),
+        "timeTo": term.date_time_to.strftime("%H:%M"),
+        "doctorId": term.doctor.id,
+        "doctor": {
+            "id": term.doctor.id,
+            "academicTitle": term.doctor.academic_title,
+            "firstName": term.doctor.first_name,
+            "lastName": term.doctor.last_name,
+        },
+        "isAdditional": term.is_additional,
+        "isImpediment": bool(raw.get("isImpediment", False)),
+        "impedimentText": raw.get("impedimentText", "") or "",
+        "isPreparationRequired": bool(raw.get("isPreparationRequired", False)),
+        "preparationItems": raw.get("preparationItems") or [],
+        "referralId": raw.get("referralId"),
+        "eReferralId": raw.get("eReferralId"),
+        "referralTypeId": raw.get("referralTypeId"),
+        "parentReservationId": raw.get("parentReservationId"),
+        "correlationId": ctx.correlation_id,
+        "isTelemedicine": term.is_telemedicine,
+        "isPoz": bool(raw.get("isPoz", False)),
+        "isRehabilitation": bool(raw.get("isRehabilitation", False)),
+        "isOnWhiteList": bool(raw.get("isOnWhiteList", False)),
+        "rehabilitationTermContext": raw.get("rehabilitationTermContext"),
+        "isVideoConsultation": bool(raw.get("isVideoConsultation", False)),
+    }

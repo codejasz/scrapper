@@ -92,15 +92,24 @@ def test_lock_term_posts_full_payload_including_preparation_items():
     lock_req = adapter.calls[1]
     assert lock_req.url.endswith("/NewPortal/Reservation/LockTerm")
     body = json.loads(lock_req.body)
+    # explicit shape per recon (curls/lock_term.sh)
     assert body["correlationId"] == "corr-1"
+    assert "processId" not in body  # NIE leci do LockTerm (per recon)
     assert body["serviceVariantId"] == 4436
+    assert body["serviceVariantName"] == "Ortopeda"
+    assert body["facilityId"] == 20
+    assert body["facilityName"] == "Klinika"
     assert body["roomId"] == 30
     assert body["scheduleId"] == 40
-    assert body["clinicId"] == 20
+    assert body["doctorId"] == 11
+    assert body["doctor"]["id"] == 11
+    assert body["doctor"]["firstName"] == "J"
     assert body["preparationItems"] == [{"id": 7, "name": "skierowanie"}]
     assert body["isPoz"] is False
-    assert body["dateTimeFrom"] == "2026-05-08T17:00:00"
-    assert body["dateTimeTo"] == "2026-05-08T17:30:00"
+    # date = ISO UTC midnight, godziny osobno
+    assert body["date"] == "2026-05-08T00:00:00.000Z"
+    assert body["timeFrom"] == "17:00"
+    assert body["timeTo"] == "17:30"
 
 
 def test_lock_term_failure_returns_error_in_result():
