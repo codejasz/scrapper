@@ -1,0 +1,22 @@
+{
+  "plan": "2026-04-29-luxmed-scrapper-reanimacja",
+  "phase": 2,
+  "sessions": [
+    {
+      "session": 1,
+      "date": "2026-05-06",
+      "branch": "feature/scrapper-reanimacja",
+      "head_sha": "af04012",
+      "tasks_done": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"],
+      "tasks_partial": ["17"],
+      "tasks_pending": ["18"],
+      "bugs_found_in_validation": 6,
+      "bugs_fixed_in_session": 5,
+      "bugs_carried_over": 1,
+      "blockers": ["LockTerm 400 — capture realny request via Playwright"],
+      "retro": "docs/superpowers/retros/2026-05-06-p2-s1-retro.md",
+      "handoff": "docs/superpowers/handoffs/2026-05-06-p2-s2-luxmed-lockterm-handoff.md",
+      "memory_snapshot": "~/.claude/projects/-home-adrian-privatespace/memory/project_state_2026-05-06-luxmed-scrapper-reanimacja.md"
+    }
+  ]
+}

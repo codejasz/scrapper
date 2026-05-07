@@ -49,6 +49,8 @@ scrapper/
 
 ## Task 0: Pre-flight — zażądaj cURL-i i podmień plaintext password
 
+> (DONE 2026-05-06 — pre-flight; commits f3353bb, 5733c48 — redact creds, prep curl artefakty.)
+
 **Files:**
 
 - Create: `docs/superpowers/curls/README.md`
@@ -140,6 +142,8 @@ git commit -m "chore(scrapper): redact plaintext credentials, prep curl artefakt
 ---
 
 ## Task 1: pyproject.toml + struktura pakietu
+
+> (DONE 2026-05-06 — commit 5b9e7d0. pyproject + scaffold; testy bootstrap OK.)
 
 **Files:**
 
@@ -244,6 +248,8 @@ git commit -m "chore(scrapper): scaffold pyproject.toml + package layout"
 ---
 
 ## Task 2: config.py — Settings z .env
+
+> (DONE 2026-05-06 — commits 0e1b1ba, c162b8f. Settings + .env loader; 3/3 tests.)
 
 **Files:**
 
@@ -373,6 +379,8 @@ git commit -m "feat(scrapper): config loader z .env i opcjonalnym Telegramem"
 ---
 
 ## Task 3: logging_setup.py — root logger + JWT mask
+
+> (DONE 2026-05-06 — commit 4a2dc78. logger + JwtMaskingFilter; 4/4 tests.)
 
 **Files:**
 
@@ -504,6 +512,8 @@ git commit -m "feat(scrapper): logging setup z filtrem maskującym JWT"
 ---
 
 ## Task 4: models.py — dataclassy
+
+> (DONE 2026-05-06 — commit c73f0be. 6 dataclassy domeny; 7/7 tests.)
 
 **Files:**
 
@@ -692,6 +702,8 @@ git commit -m "feat(scrapper): dataclassy domeny (Place, Doctor, Term, SearchCon
 
 ## Task 5: catalog.py — wyszukiwanie service po nazwie/ID
 
+> (DONE 2026-05-06 — commit bec3de0. find_service_by_id/name; 5/5 tests.)
+
 **Files:**
 
 - Create: `src/scrapper/catalog.py`
@@ -834,6 +846,8 @@ git commit -m "feat(scrapper): catalog z lookupem service po id/nazwie"
 ---
 
 ## Task 6: client.py — szkielet LuxmedClient + login
+
+> (DONE 2026-05-06 — commit f70a144. LuxmedClient + login + JWT auto-refresh; 5/5 tests, 2-stage review.)
 
 **Files:**
 
@@ -1073,6 +1087,8 @@ git commit -m "feat(scrapper): LuxmedClient z login + JWT auto-refresh"
 
 ## Task 7: client.py — XSRF + serviceVariantsGroups
 
+> (DONE 2026-05-06 — commit f9f2db3. XSRF + getServiceGroups; 1/1 test.)
+
 **Files:**
 
 - Modify: `src/scrapper/client.py`
@@ -1178,6 +1194,8 @@ git commit -m "feat(scrapper): XSRF double-submit + getServiceGroups"
 ---
 
 ## Task 8: client.py — oneDayTerms (per-day search)
+
+> (DONE 2026-05-06 — commits 434d83c, 2c590d9. oneDayTerms parser; 2/2 tests, 2-stage review. NOTA T17: parser miał błędne założenie shape (termsForService.termsForDays — naprawione w a46a91e).)
 
 **Files:**
 
@@ -1391,6 +1409,8 @@ git commit -m "feat(scrapper): per-day oneDayTerms z parsowaniem terms+correlati
 ---
 
 ## Task 9: client.py — Save + LockTerm
+
+> (DONE 2026-05-06 — commit 695f612. Save + LockTerm + raw passthrough; 3/3 tests, 2-stage review. NOTA T17: passthrough z term.raw nie wystarczył dla LockTerm — body shape całkowicie różny od planu (naprawione w 25182d9 ale 400 nadal).)
 
 **Files:**
 
@@ -1619,6 +1639,8 @@ git commit -m "feat(scrapper): Save + LockTerm z forwardem raw preparationItems"
 ---
 
 ## Task 10: search.py — kryteria, matches, iter_days, find_matching_term, poll_loop
+
+> (DONE 2026-05-06 — commit d2168db. SearchCriteria + matches + poll_loop; 11/11 tests, 2-stage review. NOTA T17: throttle dodany w fix commit 1e60ab2/20e4fd1.)
 
 **Files:**
 
@@ -1901,6 +1923,8 @@ git commit -m "feat(scrapper): SearchCriteria + matches + per-day poll loop"
 
 ## Task 11: booking.py — Save → LockTerm orchestration
 
+> (DONE 2026-05-06 — commit fbf0da8. booking.lock orchestrator; 2/2 tests.)
+
 **Files:**
 
 - Create: `src/scrapper/booking.py`
@@ -2012,6 +2036,8 @@ git commit -m "feat(scrapper): booking flow Save→LockTerm"
 
 ## Task 12: notify.py — Telegram
 
+> (DONE 2026-05-06 — commit 4af6601. TelegramNotifier; 3/3 tests. NIE skonfigurowane przez usera — Telegram acceptance kryterium nie zwalidowane.)
+
 **Files:**
 
 - Create: `src/scrapper/notify.py`
@@ -2121,6 +2147,8 @@ git commit -m "feat(scrapper): TelegramNotifier (best-effort send)"
 ---
 
 ## Task 13: cli.py — argparse + sub-commands
+
+> (DONE 2026-05-06 — commit 5ee889d. CLI argparse + 3 sub-commands; 7/7 tests, 2-stage review.)
 
 **Files:**
 
@@ -2474,6 +2502,8 @@ git commit -m "feat(scrapper): CLI z search/services/smoke"
 
 ## Task 14: Skasuj stary kod (jednym commitem)
 
+> (DONE 2026-05-06 — commit a4224ec. 19 plików legacy skasowane (-8014 linii).)
+
 **Files:**
 
 - Delete: `main.py`, `flaskServer.py`, `tools.py`, `test_scrapper.py`, `config.py` (root)
@@ -2513,6 +2543,8 @@ git commit -m "refactor(scrapper): skasuj legacy main/flask/tools, plaintext con
 ---
 
 ## Task 15: smoke test (real network)
+
+> (DONE 2026-05-06 — commit 868d38a. Real-network smoke test PASS. NOTA: assertion luźna — nie zauważyła błędnego parsera, T17 zlapało.)
 
 **Files:**
 
@@ -2597,6 +2629,8 @@ git commit -m "test(scrapper): smoke end-to-end (login+groups+oneDayTerms)"
 ---
 
 ## Task 16: README + .env wireup
+
+> (DONE 2026-05-06 — commit af10684, plus update README a46a91e dla per-day search.)
 
 **Files:**
 
@@ -2718,6 +2752,8 @@ git commit -m "docs(scrapper): README z setup + użyciem + architekturą"
 ---
 
 ## Task 17: Manualna walidacja end-to-end (acceptance)
+
+> (PARTIAL 2026-05-06 — Steps 2-4 PASS realnym Luxmedem (smoke + services + search --no-lock z prawdziwym matchem). Step 5 BLOCKER: LockTerm 400 mimo że body matchuje recon curl. Save 200 OK. Telegram nie skonfigurowany. T17 odkryło 6 bugów (parser shape, URL params, throttle, error handling, refactor regret, LockTerm body) — wszystkie poza LockTerm 400 naprawione w commitach 1e60ab2, 20e4fd1, 0e361d7→reverted, a46a91e, 25182d9, af04012. Follow-up w Task #18.)
 
 **Cel:** sprawdzić acceptance criteria ze speca: scrapper potrafi zlockować slot, Telegram dostaje wiadomość, smoke przechodzi.
 
