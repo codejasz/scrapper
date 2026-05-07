@@ -13,7 +13,15 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .models import Doctor, LockResult, OneDayTermsResponse, Place, SearchContext, Term
+from .models import (
+    Doctor,
+    LockResult,
+    OneDayTermsResponse,
+    Place,
+    ReservationSummary,
+    SearchContext,
+    Term,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +31,7 @@ GROUPS_URL = f"{BASE_URL}/NewPortal/Dictionary/serviceVariantsGroups"
 ONE_DAY_TERMS_URL = f"{BASE_URL}/NewPortal/terms/oneDayTerms"
 SAVE_URL = f"{BASE_URL}/NewPortal/AvailabilityLog/Save"
 LOCK_URL = f"{BASE_URL}/NewPortal/Reservation/LockTerm"
+UPCOMING_VISITS_URL = f"{BASE_URL}/NewPortal/DashboardMedicalSection/GetUpcomingVisits"
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
@@ -181,6 +190,63 @@ class LuxmedClient:
             error=None if reservation_id else "Brak temporaryReservationId w response",
             raw=data,
         )
+
+    def get_my_reservations(self) -> list[ReservationSummary]:
+        self.ensure_authenticated()
+        resp = self.session.get(UPCOMING_VISITS_URL)
+        resp.raise_for_status()
+        data = resp.json()
+        logger.debug("GetUpcomingVisits raw: %s", data)
+        return _parse_upcoming_visits(data)
+
+
+def _parse_upcoming_visits(data: Any) -> list[ReservationSummary]:
+    """Parsuje GetUpcomingVisits response → list[ReservationSummary].
+
+    Recon (2026-05-07): endpoint zwraca {"events": [...]}.
+    Pojedynczy event shape do ustalenia przy pierwszej wizycie — parser defensywny.
+    """
+    visits: list[Any] = []
+    if isinstance(data, list):
+        visits = data
+    elif isinstance(data, dict):
+        for key in ("events", "visits", "upcomingVisits", "data", "value"):
+            if isinstance(data.get(key), list):
+                visits = data[key]
+                break
+
+    if not visits:
+        return []
+
+    results = []
+    for v in visits:
+        try:
+            if not isinstance(v, dict):
+                continue
+            logger.debug("GetUpcomingVisits event: %s", v)
+            rid = str(v.get("reservationId") or v.get("id") or "")
+            if not rid:
+                logger.warning("GetUpcomingVisits: event bez id — %s", v)
+                continue
+            date_str = (v.get("visitDate") or v.get("dateTimeFrom")
+                        or v.get("date") or v.get("startDate") or "")
+            dt = datetime.fromisoformat(date_str) if date_str else datetime.min
+            doctor = v.get("doctor") or {}
+            doctor_name = (
+                f"{doctor.get('firstName', '')} {doctor.get('lastName', '')}".strip()
+                or v.get("doctorName") or v.get("doctor") or ""
+            )
+            service_name = (v.get("serviceName") or v.get("serviceVariantName")
+                            or v.get("service") or "")
+            results.append(ReservationSummary(
+                reservation_id=rid,
+                date_time_from=dt,
+                doctor_name=str(doctor_name),
+                service_name=str(service_name),
+            ))
+        except Exception as exc:
+            logger.warning("Pominięto event wizyty: %s — %s", v, exc)
+    return results
 
 
 def _parse_one_day_terms(data: dict[str, Any]) -> OneDayTermsResponse:

@@ -36,21 +36,34 @@ def test_search_parser_accepts_service_id():
     assert args.subcommand == "search"
     assert args.service_id == 4436
     assert args.city == "Wrocław"
-    assert args.no_lock is False
+    assert args.auto_book is False
     assert args.once is False
+    assert args.cooldown == 300
 
 
-def test_search_parser_no_lock_and_once_flags():
+def test_search_parser_auto_book_and_once_flags():
     parser = build_parser()
     args = parser.parse_args([
         "search", "--service-name", "Ortopeda",
         "--city", "Wrocław",
         "--from", "2026-05-05 16:00",
         "--to", "2026-05-05 19:00",
-        "--no-lock", "--once",
+        "--auto-book", "--once",
     ])
-    assert args.no_lock is True
+    assert args.auto_book is True
     assert args.once is True
+
+
+def test_search_parser_cooldown_override():
+    parser = build_parser()
+    args = parser.parse_args([
+        "search", "--service-name", "Ortopeda",
+        "--city", "Wrocław",
+        "--from", "2026-05-05 16:00",
+        "--to", "2026-05-05 19:00",
+        "--cooldown", "120",
+    ])
+    assert args.cooldown == 120
 
 
 def test_services_subcommand():

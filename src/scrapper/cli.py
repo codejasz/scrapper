@@ -15,9 +15,9 @@ from .catalog import find_service_by_id, find_services_by_name
 from .client import AuthError, LuxmedClient
 from .config import Settings, load_settings
 from .logging_setup import setup_logging
-from .models import Place, SearchContext
+from .models import Place, SearchContext, Term
 from .notify import TelegramNotifier
-from .search import SearchCriteria, find_matching_term, poll_loop
+from .search import SearchCriteria, find_matching_term, poll_loop, watch_loop
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +43,12 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--doctor", default=None)
     search.add_argument("--facility", default=None)
     search.add_argument("--once", action="store_true",
-                        help="Jeden sweep (bez pętli)")
-    search.add_argument("--no-lock", action="store_true",
-                        help="Tylko alert, bez LockTerm")
+                        help="Jeden sweep (bez pętli, bez reservation check)")
+    search.add_argument("--auto-book", action="store_true",
+                        help="Eksperymentalnie: LockTerm po znalezieniu (broken — patrz Task #18)")
     search.add_argument("--max-iterations", type=int, default=None)
+    search.add_argument("--cooldown", type=int, default=300,
+                        help="Sekundy między alertem a kolejnym reservation check (default 300)")
 
     # services
     services = sub.add_parser("services", help="Listuj services")
@@ -92,7 +94,37 @@ def _resolve_service(client: LuxmedClient, args: argparse.Namespace) -> tuple[in
     return matches[0].service_id, matches[0].name
 
 
+SEARCH_PAGE_URL = "https://portalpacjenta.luxmed.pl/PatientPortal/NewPortal/Page/Search"
+
+
+def _format_alert(term: Term) -> str:
+    return (
+        f"<b>Wolny termin Luxmed</b>\n"
+        f"{term.doctor.full_name()}\n"
+        f"{term.date_time_from.strftime('%Y-%m-%d %H:%M')}\n"
+        f"{term.facility_name}\n"
+        f'<a href="{SEARCH_PAGE_URL}">Zarezerwuj</a>'
+    )
+
+
+def _format_booked(term: Term) -> str:
+    return (
+        f"<b>Wizyta zarezerwowana (5-10 min)</b>\n"
+        f"{term.doctor.full_name()}\n"
+        f"{term.date_time_from.strftime('%Y-%m-%d %H:%M')}\n"
+        f"{term.facility_name}\n"
+        f"https://portalpacjenta.luxmed.pl/PatientPortal/NewPortal/Page/MyVisits"
+    )
+
+
 def _cmd_search(args: argparse.Namespace, settings: Settings) -> int:
+    if not args.auto_book and not settings.telegram_enabled:
+        logger.error(
+            "Telegram niezakonfigurowany (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID) — "
+            "default flow wymaga notyfikacji. Dodaj env albo użyj --auto-book."
+        )
+        return 1
+
     client = LuxmedClient(settings.luxmed_email, settings.luxmed_password)
     client.login()
 
@@ -104,6 +136,79 @@ def _cmd_search(args: argparse.Namespace, settings: Settings) -> int:
         doctor_filter=args.doctor, facility_filter=args.facility,
     )
 
+    if args.auto_book:
+        return _run_auto_book(client, crit, service_id, service_name, place, args, settings)
+
+    return _run_watch(client, crit, service_name, args, settings)
+
+
+def _run_watch(
+    client: LuxmedClient,
+    crit: SearchCriteria,
+    service_name: str,
+    args: argparse.Namespace,
+    settings: Settings,
+) -> int:
+    notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+
+    if args.once:
+        term = find_matching_term(client, crit)
+        if not term:
+            logger.info("Brak slotów w zakresie")
+            return 0
+        term.service_variant_name = service_name
+        notifier.send(_format_alert(term))
+        logger.info("Alert wysłany (--once): %s %s",
+                    term.date_time_from.isoformat(), term.doctor.full_name())
+        return 0
+
+    try:
+        baseline = {r.reservation_id for r in client.get_my_reservations()}
+    except NotImplementedError:
+        logger.warning(
+            "get_my_reservations niewdrożone (recon pending) — baseline pusty, "
+            "reservation check będzie no-op. Alerty Telegram działają normalnie."
+        )
+        baseline = set()
+
+    def on_alert(term: Term) -> None:
+        term.service_variant_name = service_name
+        notifier.send(_format_alert(term))
+
+    def fetch_reservations():
+        try:
+            return client.get_my_reservations()
+        except NotImplementedError:
+            return []
+
+    result = watch_loop(
+        client, crit,
+        on_alert=on_alert,
+        fetch_reservations=fetch_reservations,
+        baseline_reservation_ids=baseline,
+        cooldown_seconds=args.cooldown,
+        max_iterations=args.max_iterations,
+    )
+    if result.exit_reason == "new_reservation" and result.new_reservation:
+        r = result.new_reservation
+        logger.info("Wykryta nowa rezerwacja: %s — %s %s",
+                    r.reservation_id, r.date_time_from.isoformat(), r.doctor_name)
+        return 0
+    if result.exit_reason == "max_iterations":
+        logger.info("Koniec po %d iteracjach (max-iterations)", result.iterations)
+        return 0
+    return 0
+
+
+def _run_auto_book(
+    client: LuxmedClient,
+    crit: SearchCriteria,
+    service_id: int,
+    service_name: str,
+    place: Place,
+    args: argparse.Namespace,
+    settings: Settings,
+) -> int:
     if args.once:
         term = find_matching_term(client, crit)
         if not term:
@@ -112,15 +217,7 @@ def _cmd_search(args: argparse.Namespace, settings: Settings) -> int:
     else:
         term = poll_loop(client, crit, max_iterations=args.max_iterations)
 
-    # service_variant_name nie istnieje w oneDayTerms response — wstrzykujemy z catalogu
     term.service_variant_name = service_name
-
-    if args.no_lock:
-        logger.info("Slot znaleziony (no-lock): %s, %s, %s",
-                    term.date_time_from.isoformat(),
-                    term.doctor.full_name(),
-                    term.facility_name)
-        return 0
 
     import uuid
     ctx = SearchContext(
@@ -131,7 +228,6 @@ def _cmd_search(args: argparse.Namespace, settings: Settings) -> int:
             "cityId": place.id,
         },
     )
-    # Re-fetch correlationId dla danego dnia (LockTerm wymaga niedawnego)
     response = client.get_one_day_terms(
         service_id=service_id, place=place, day=term.date_time_from.date(),
     )
@@ -142,16 +238,11 @@ def _cmd_search(args: argparse.Namespace, settings: Settings) -> int:
         logger.error("LockTerm fail: %s", result.error)
         return 1
 
-    msg = (
-        f"<b>Wizyta zarezerwowana (5-10 min)</b>\n"
-        f"{term.doctor.full_name()}\n"
-        f"{term.date_time_from.strftime('%Y-%m-%d %H:%M')}\n"
-        f"{term.facility_name}\n"
-        f"https://portalpacjenta.luxmed.pl/PatientPortal/NewPortal/Page/MyVisits"
-    )
     logger.info("Slot zarezerwowany: %s", result.temporary_reservation_id)
     if settings.telegram_enabled:
-        TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id).send(msg)
+        TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id).send(
+            _format_booked(term)
+        )
     return 0
 
 

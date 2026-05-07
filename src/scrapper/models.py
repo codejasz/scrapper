@@ -67,3 +67,11 @@ class LockResult:
     temporary_reservation_id: str | None
     error: str | None
     raw: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ReservationSummary:
+    reservation_id: str
+    date_time_from: datetime
+    doctor_name: str
+    service_name: str
