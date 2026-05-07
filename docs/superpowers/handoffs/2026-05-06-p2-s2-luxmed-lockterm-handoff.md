@@ -65,5 +65,7 @@ Te decyzje są już podjęte — **nie reotwierać**:
 
 ## Memory anchor
 
-Snapshot stanu: `~/.claude/projects/-home-adrian-privatespace/memory/project_state_2026-05-06-luxmed-scrapper-reanimacja.md`
-Pointer w `MEMORY.md` → sekcja `## Current state`.
+**Sesja powinna być odpalona z `~/privatespace/repositories/scrapper/` jako CWD** (nie z `~/privatespace/`) — memory jest project-scoped:
+
+- Snapshot: `~/.claude/projects/-home-adrian-privatespace-repositories-scrapper/memory/project_state_2026-05-06-luxmed-scrapper-reanimacja.md`
+- Index: `~/.claude/projects/-home-adrian-privatespace-repositories-scrapper/memory/MEMORY.md` → sekcja `## Current state`

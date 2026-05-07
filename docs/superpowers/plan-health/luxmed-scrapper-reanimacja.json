@@ -16,7 +16,7 @@
       "blockers": ["LockTerm 400 — capture realny request via Playwright"],
       "retro": "docs/superpowers/retros/2026-05-06-p2-s1-retro.md",
       "handoff": "docs/superpowers/handoffs/2026-05-06-p2-s2-luxmed-lockterm-handoff.md",
-      "memory_snapshot": "~/.claude/projects/-home-adrian-privatespace/memory/project_state_2026-05-06-luxmed-scrapper-reanimacja.md"
+      "memory_snapshot": "~/.claude/projects/-home-adrian-privatespace-repositories-scrapper/memory/project_state_2026-05-06-luxmed-scrapper-reanimacja.md"
     }
   ]
 }
