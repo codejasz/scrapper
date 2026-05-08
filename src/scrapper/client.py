@@ -224,7 +224,7 @@ def _parse_upcoming_visits(data: Any) -> list[ReservationSummary]:
             if not isinstance(v, dict):
                 continue
             logger.debug("GetUpcomingVisits event: %s", v)
-            rid = str(v.get("reservationId") or v.get("id") or "")
+            rid = str(v.get("eventId") or v.get("reservationId") or v.get("id") or "")
             if not rid:
                 logger.warning("GetUpcomingVisits: event bez id — %s", v)
                 continue
@@ -233,11 +233,12 @@ def _parse_upcoming_visits(data: Any) -> list[ReservationSummary]:
             dt = datetime.fromisoformat(date_str) if date_str else datetime.min
             doctor = v.get("doctor") or {}
             doctor_name = (
-                f"{doctor.get('firstName', '')} {doctor.get('lastName', '')}".strip()
-                or v.get("doctorName") or v.get("doctor") or ""
+                f"{doctor.get('name', '')} {doctor.get('lastname', '')}".strip()
+                or f"{doctor.get('firstName', '')} {doctor.get('lastName', '')}".strip()
+                or v.get("doctorName") or ""
             )
-            service_name = (v.get("serviceName") or v.get("serviceVariantName")
-                            or v.get("service") or "")
+            service_name = (v.get("title") or v.get("serviceName")
+                            or v.get("serviceVariantName") or v.get("service") or "")
             results.append(ReservationSummary(
                 reservation_id=rid,
                 date_time_from=dt,
