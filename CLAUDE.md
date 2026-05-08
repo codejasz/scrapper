@@ -10,8 +10,8 @@ python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 # Run scrapper (--debug is global — must come BEFORE subcommand)
 source .venv/bin/activate
-scrapper --debug search --service-id <ID> --city Wrocław --from "..." --to "..."          # --once: single sweep
-scrapper --debug search --service-id <ID> --city Wrocław --from "..." --to "..." --cooldown 300  # watch loop (default)
+scrapper --debug search --service-id <ID> --city Wrocław --from "..." --to "..."                 # default: watch loop, cooldown 300s
+scrapper --debug search --service-id <ID> --city Wrocław --from "..." --to "..." --once          # single sweep, exit po pierwszym przejściu
 scrapper services --query <name>          # find service ID → use --service-id, not --service-name
 scrapper smoke                            # connectivity check
 
@@ -40,4 +40,10 @@ scrapper smoke                            # connectivity check
 
 ## Environment
 
-`.env` required (see `.env.example`). `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` are optional — without them alerts are logged only.
+`.env` required (see `.env.example`):
+- `LUXMED_EMAIL` / `LUXMED_PASSWORD` — **wymagane** (login → JWT)
+- `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` — opcjonalne; bez nich alerty są tylko logowane
+
+Smoke tests (`pytest -m smoke`) wymagają wszystkich czterech + sieci.
+
+Głębszy API context (endpointy, recon notes): `RECON_REPORT.md`.
